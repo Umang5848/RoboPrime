@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptVault</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080e;
+    --surface: #111118;
+    --surface2: #191924;
+    --border: #252535;
+    --accent: #7c6aff;
+    --accent2: #ff6a9a;
+    --green: #3ddc84;
+    --red: #ff4d6a;
+    --text: #e8e8f0;
+    --muted: #5a5a78;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 15% 5%, rgba(124,106,255,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 85% 85%, rgba(255,106,154,0.05) 0%, transparent 55%);
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(8,8,14,0.88); backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.9rem 2rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  }
+  .logo-wrap { display: flex; flex-direction: column; gap: 1px; }
+  .logo {
+    font-size: 1.35rem; font-weight: 800; letter-spacing: -0.04em;
+    background: linear-gradient(120deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .logo-sub {
+    font-family: 'Space Mono', monospace; font-size: 0.6rem; color: var(--muted);
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+
+  .header-right { display: flex; align-items: center; gap: 0.75rem; }
+
+  /* API key status pill */
+  .api-pill {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 0.3rem 0.75rem;
+    font-family: 'Space Mono', monospace; font-size: 0.65rem; color: var(--muted);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .api-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .api-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red); transition: background 0.3s;
+  }
+  .api-pill.active .dot { background: var(--green); }
+  .api-pill.active { border-color: rgba(61,220,132,0.3); }
+
+  .btn-add {
+    display: flex; align-items: center; gap: 0.45rem;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 0.55rem 1.1rem;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-add:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,255,0.4); }
+  .btn-add:active { transform: none; }
+
+  /* ── MAIN ── */
+  main { position: relative; z-index: 1; padding: 1.75rem 2rem; max-width: 1440px; margin: 0 auto; }
+
+  .top-bar {
+    display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+    margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border);
+  }
+  .stat { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); line-height: 1.6; }
+  .stat strong { display: block; font-size: 1.05rem; color: var(--text); }
+
+  .divider { width: 1px; height: 32px; background: var(--border); }
+
+  .search-wrap { position: relative; margin-left: auto; }
+  .search-wrap input {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.5rem 1rem 0.5rem 2.4rem;
+    color: var(--text); font-family: 'Space Mono', monospace; font-size: 0.78rem;
+    width: 210px; outline: none; transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-wrap svg { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 1.1rem;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; cursor: pointer;
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.35s ease both;
+  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px);} to { opacity:1; transform:translateY(0);} }
+
+  .card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 16px 40px rgba(124,106,255,0.18); }
+
+  .card-thumb {
+    width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+    background: var(--surface2);
+  }
+  .card-thumb-placeholder {
+    width: 100%; aspect-ratio: 4/3;
+    background: linear-gradient(135deg, var(--surface2), var(--surface));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.5rem; color: var(--muted);
+  }
+  .card-body { padding: 0.9rem; }
+  .card-title {
+    font-weight: 700; font-size: 0.9rem; margin-bottom: 0.35rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-snippet {
+    font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted);
+    line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem; border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .card-date { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: var(--muted); }
+
+  .btn-qcopy {
+    display: flex; align-items: center; gap: 0.3rem;
+    background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.28rem 0.55rem; color: var(--muted);
+    font-family: 'Space Mono', monospace; font-size: 0.62rem; cursor: pointer; transition: all 0.18s;
+  }
+  .btn-qcopy:hover { border-color: var(--accent); color: var(--accent); background: rgba(124,106,255,0.08); }
+  .btn-qcopy.ok { border-color: var(--green); color: var(--green); background: rgba(61,220,132,0.08); }
+
+  /* ── EMPTY ── */
+  .empty { grid-column: 1/-1; text-align: center; padding: 5rem 1rem; }
+  .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.3; }
+  .empty h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .empty p { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+
+  /* ── MODALS ── */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.25rem; opacity: 0; pointer-events: none; transition: opacity 0.22s;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 660px; max-height: 92vh; overflow-y: auto;
+    transform: scale(0.93) translateY(18px);
+    transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .overlay.open .modal { transform: scale(1) translateY(0); }
+  .modal.narrow { max-width: 480px; }
+
+  .modal-img { width: 100%; max-height: 360px; object-fit: cover; border-radius: 14px 14px 0 0; display: block; }
+  .modal-img-ph {
+    width: 100%; height: 180px; border-radius: 14px 14px 0 0;
+    background: linear-gradient(135deg, var(--surface2), var(--bg));
+    display: flex; align-items: center; justify-content: center; font-size: 3rem;
+  }
+
+  .modal-body { padding: 1.4rem; }
+  .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.1rem; }
+  .modal-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; }
+  .modal-subtitle { font-family: 'Space Mono', monospace; font-size: 0.67rem; color: var(--muted); margin-top: 3px; }
+
+  .modal-close {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    width: 34px; height: 34px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); transition: all 0.18s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--muted); }
+
+  .section-label {
+    font-family: 'Space Mono', monospace; font-size: 0.62rem; text-transform: uppercase;
+    letter-spacing: 0.14em; color: var(--accent); margin-bottom: 0.5rem;
+    display: flex; align-items: center; gap: 0.35rem;
+  }
+  .prompt-box {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.9rem 1rem; font-family: 'Space Mono', monospace; font-size: 0.78rem;
+    line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word;
+    max-height: 200px; overflow-y: auto; margin-bottom: 1rem;
+  }
+
+  .action-row { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+
+  .btn-primary {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 0.7rem 1.1rem; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.88rem;
+    cursor: pointer; transition: all 0.2s; min-width: 140px;
+  }
+  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-primary.ok { background: var(--green); color: #000; }
+
+  .btn-ghost {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 0.7rem 0.95rem;
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.82rem;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .btn-ghost.del:hover { border-color: var(--red); color: var(--red); background: rgba(255,77,106,0.08); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── FORM ── */
+  .form-group { margin-bottom: 1.15rem; }
+  .form-label {
+    display: block; font-family: 'Space Mono', monospace; font-size: 0.67rem;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.45rem;
+  }
+  .form-input, .form-textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.7rem 0.95rem; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 0.88rem; outline: none;
+    transition: border-color 0.18s;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-input::placeholder, .form-textarea::placeholder { color: var(--muted); }
+  .form-textarea { min-height: 95px; resize: vertical; font-family: 'Space Mono', monospace; font-size: 0.8rem; line-height: 1.6; }
+
+  /* Upload zone */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 1.75rem;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--bg); position: relative;
+  }
+  .drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: rgba(124,106,255,0.04); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-text { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); line-height: 1.7; }
+  .drop-preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 7px; margin-top: 0.75rem; display: none; }
+
+  /* Upload progress */
+  .upload-progress {
+    display: none; align-items: center; gap: 0.75rem; margin-top: 0.6rem;
+    font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  }
+  .upload-progress.show { display: flex; }
+  .progress-bar-wrap { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+  /* API key modal */
+  .api-info { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem; }
+  .api-info p { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); line-height: 1.7; }
+  .api-info a { color: var(--accent); text-decoration: none; }
+  .api-info a:hover { text-decoration: underline; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 300;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.7rem 1.1rem;
+    font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--text);
+    display: flex; align-items: center; gap: 0.55rem;
+    transform: translateY(110%); transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--red); }
+  .toast.info { border-color: var(--accent); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:580px) {
+    header { padding: 0.75rem 1rem; }
+    main { padding: 1rem; }
+    .logo { font-size: 1.1rem; }
+    .search-wrap input { width: 150px; }
+    .btn-add span { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ HEADER ══════════════════════ -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo">PromptVault</div>
+    <div class="logo-sub">// image prompt archive</div>
+  </div>
+  <div class="header-right">
+    <div class="api-pill" id="apiPill" onclick="openApiModal()" title="Configure ImgBB API Key">
+      <div class="dot"></div>
+      <span id="apiPillText">API Key</span>
+    </div>
+    <button class="btn-add" onclick="openAddModal()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>Add Entry</span>
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<main>
+  <div class="top-bar">
+    <div class="stat"><strong id="statCount">0</strong>entries</div>
+    <div class="divider"></div>
+    <div class="stat"><strong id="statDate">—</strong>last saved</div>
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="search title or prompt…" oninput="renderGrid()">
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<!-- ══════════════════════ VIEW MODAL ══════════════════════ -->
+<div class="overlay" id="viewOverlay" onclick="overlayClick(event,'viewOverlay')">
+  <div class="modal">
+    <div id="viewImgWrap"></div>
+    <div class="modal-body">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="viewTitle"></div>
+          <div class="modal-subtitle" id="viewDate"></div>
+        </div>
+        <button class="modal-close" onclick="closeOverlay('viewOverlay')">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="section-label">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Full Prompt
+      </div>
+      <div class="prompt-box" id="viewPrompt"></div>
+      <div class="action-row">
+        <button class="btn-primary" id="viewCopyBtn" onclick="copyFromView()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Prompt
+        </button>
+        <button class="btn-ghost del" onclick="deleteEntry()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ADD MODAL ══════════════════════ -->
+<div class="overlay" id="addOverlay" onclick="overlayClick(event,'addOverlay')">
+  <div class="modal narrow">
+    <div class="modal-body">
+      <div class="modal-head">
+        <div class="modal-title">New Entry</div>
+        <button class="modal-close" onclick="closeOverlay('addOverlay')">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input type="text" class="form-input" id="fTitle" placeholder="e.g. Neon cityscape at dusk">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Image (uploaded to ImgBB)</label>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" accept="image/*" id="imgFile" onchange="handleFilePick(event)">
+          <div style="font-size:1.8rem;margin-bottom:0.4rem">🖼️</div>
+          <div class="drop-text">Drop image here or <u>click to browse</u><br><span style="opacity:.55">PNG · JPG · WEBP · GIF — max 32 MB</span></div>
+          <img id="dropPreview" class="drop-preview" alt="preview">
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+          <span id="progressLabel">Uploading…</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Prompt</label>
+        <textarea class="form-textarea" id="fPrompt" placeholder="Paste your full AI image generation prompt here…"></textarea>
+      </div>
+
+      <button class="btn-primary" style="width:100%;justify-content:center" onclick="saveEntry()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Entry
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ API KEY MODAL ══════════════════════ -->
+<div class="overlay" id="apiOverlay" onclick="overlayClick(event,'apiOverlay')">
+  <div class="modal narrow">
+    <div class="modal-body">
+      <div class="modal-head">
+        <div class="modal-title">ImgBB API Key</div>
+        <button class="modal-close" onclick="closeOverlay('apiOverlay')">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="api-info">
+        <p>
+          Images are uploaded to <strong style="color:var(--text)">ImgBB</strong> (free, no account limits).<br>
+          1. Go to <a href="https://api.imgbb.com/" target="_blank">api.imgbb.com</a><br>
+          2. Sign up / log in → click <strong style="color:var(--text)">Get API key</strong><br>
+          3. Copy the key and paste it below.<br><br>
+          <span style="opacity:.6">Your key is stored only in your browser's localStorage — never sent anywhere except ImgBB.</span>
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input type="text" class="form-input" id="apiKeyInput" placeholder="e.g. 1a2b3c4d5e6f7890abcdef…" autocomplete="off">
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" style="justify-content:center" onclick="saveApiKey()">Save Key</button>
+        <button class="btn-ghost del" onclick="removeApiKey()">Remove</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ TOAST ══════════════════════ -->
+<div class="toast" id="toast">
+  <span id="toastIcon"></span>
+  <span id="toastMsg"></span>
+</div>
+
+<!-- ══════════════════════ SCRIPT ══════════════════════ -->
+<script>
+// ── Storage keys
+const ENTRIES_KEY = 'pv_entries';
+const APIKEY_KEY  = 'pv_imgbb_key';
+
+let entries   = [];
+let activeId  = null;
+let pendingFile = null;   // File object waiting to be uploaded
+
+// ── Load
+function load() {
+  try { entries = JSON.parse(localStorage.getItem(ENTRIES_KEY)) || []; } catch { entries = []; }
+}
+function persist() {
+  localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
+}
+
+// ── API Key helpers
+function getKey()  { return localStorage.getItem(APIKEY_KEY) || ''; }
+function saveKey(k){ localStorage.setItem(APIKEY_KEY, k); }
+function removeKey(){ localStorage.removeItem(APIKEY_KEY); }
+function refreshApiPill() {
+  const k = getKey();
+  const pill = document.getElementById('apiPill');
+  const txt  = document.getElementById('apiPillText');
+  if (k) {
+    pill.classList.add('active');
+    txt.textContent = '···' + k.slice(-4);
+  } else {
+    pill.classList.remove('active');
+    txt.textContent = 'Set API Key';
+  }
+}
+
+// ── Date helper
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+// ── Render
+function renderGrid() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const list = q ? entries.filter(e =>
+    e.title.toLowerCase().includes(q) || e.prompt.toLowerCase().includes(q)
+  ) : entries;
+
+  document.getElementById('statCount').textContent = entries.length;
+  document.getElementById('statDate').textContent = entries.length ? fmtDate(entries[0].date) : '—';
+
+  const grid = document.getElementById('grid');
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">${entries.length === 0 ? '📭' : '🔍'}</div>
+        <h3>${entries.length === 0 ? 'Vault is empty' : 'Nothing found'}</h3>
+        <p>${entries.length === 0 ? 'Add your first entry to get started.' : 'Try a different search.'}</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((e, i) => `
+    <div class="card" style="animation-delay:${i*0.04}s" onclick="openEntry('${e.id}')">
+      ${e.imgUrl
+        ? `<img class="card-thumb" src="${e.imgUrl}" alt="${esc(e.title)}" loading="lazy">`
+        : `<div class="card-thumb-placeholder">🖼️</div>`}
+      <div class="card-body">
+        <div class="card-title">${esc(e.title)}</div>
+        <div class="card-snippet">${esc(e.prompt)}</div>
+      </div>
+      <div class="card-foot">
+        <span class="card-date">${fmtDate(e.date)}</span>
+        <button class="btn-qcopy" id="qc-${e.id}" onclick="quickCopy(event,'${e.id}')">
+          <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          copy
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Quick copy on card
+function quickCopy(ev, id) {
+  ev.stopPropagation();
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  navigator.clipboard.writeText(e.prompt).then(() => {
+    const btn = document.getElementById('qc-' + id);
+    btn.classList.add('ok');
+    btn.innerHTML = `<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> done`;
+    setTimeout(() => {
+      btn.classList.remove('ok');
+      btn.innerHTML = `<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> copy`;
+    }, 2000);
+    toast('Prompt copied!', 'success');
+  });
+}
+
+// ── Open entry view
+function openEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  activeId = id;
+
+  document.getElementById('viewImgWrap').innerHTML = e.imgUrl
+    ? `<img class="modal-img" src="${e.imgUrl}" alt="${esc(e.title)}">`
+    : `<div class="modal-img-ph">🖼️</div>`;
+
+  document.getElementById('viewTitle').textContent = e.title;
+  document.getElementById('viewDate').textContent = fmtDate(e.date);
+  document.getElementById('viewPrompt').textContent = e.prompt;
+
+  const btn = document.getElementById('viewCopyBtn');
+  btn.classList.remove('ok');
+  btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Prompt`;
+
+  openOverlay('viewOverlay');
+}
+
+function copyFromView() {
+  const e = entries.find(x => x.id === activeId);
+  if (!e) return;
+  navigator.clipboard.writeText(e.prompt).then(() => {
+    const btn = document.getElementById('viewCopyBtn');
+    btn.classList.add('ok');
+    btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+    toast('Prompt copied! ✨', 'success');
+    setTimeout(() => {
+      btn.classList.remove('ok');
+      btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Prompt`;
+    }, 2600);
+  });
+}
+
+function deleteEntry() {
+  if (!activeId || !confirm('Delete this entry?')) return;
+  entries = entries.filter(x => x.id !== activeId);
+  persist();
+  closeOverlay('viewOverlay');
+  renderGrid();
+  toast('Entry deleted', 'error');
+}
+
+// ── Add modal
+function openAddModal() {
+  if (!getKey()) {
+    toast('Set your ImgBB API key first!', 'info');
+    openApiModal();
+    return;
+  }
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fPrompt').value = '';
+  document.getElementById('dropPreview').style.display = 'none';
+  document.getElementById('dropPreview').src = '';
+  document.getElementById('uploadProgress').classList.remove('show');
+  document.getElementById('progressBar').style.width = '0%';
+  pendingFile = null;
+  openOverlay('addOverlay');
+  setTimeout(() => document.getElementById('fTitle').focus(), 300);
+}
+
+// ── File pick / drag-drop
+function handleFilePick(ev) {
+  const file = ev.target.files[0];
+  if (file) setPreview(file);
+}
+function setPreview(file) {
+  pendingFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const p = document.getElementById('dropPreview');
+    p.src = ev.target.result;
+    p.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) setPreview(f);
+});
+
+// ── ImgBB upload
+async function uploadToImgBB(file) {
+  const key = getKey();
+  if (!key) throw new Error('No API key set');
+
+  const prog = document.getElementById('uploadProgress');
+  const bar  = document.getElementById('progressBar');
+  const lbl  = document.getElementById('progressLabel');
+  prog.classList.add('show');
+  bar.style.width = '10%';
+  lbl.textContent = 'Uploading to ImgBB…';
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  // Fake progress animation
+  let pct = 10;
+  const ticker = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 15, 85);
+    bar.style.width = pct + '%';
+  }, 300);
+
+  try {
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
+      method: 'POST', body: formData
+    });
+    clearInterval(ticker);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Upload failed');
+    bar.style.width = '100%';
+    lbl.textContent = 'Upload complete ✓';
+    return data.data.url;            // permanent display URL
+  } catch (err) {
+    clearInterval(ticker);
+    bar.style.width = '0%';
+    lbl.textContent = 'Upload failed ✗';
+    throw err;
+  }
+}
+
+// ── Save entry
+async function saveEntry() {
+  const title  = document.getElementById('fTitle').value.trim();
+  const prompt = document.getElementById('fPrompt').value.trim();
+
+  if (!title)  { toast('Please add a title', 'error'); return; }
+  if (!prompt) { toast('Please add a prompt', 'error'); return; }
+
+  let imgUrl = null;
+  if (pendingFile) {
+    try {
+      imgUrl = await uploadToImgBB(pendingFile);
+    } catch (err) {
+      toast('Image upload failed: ' + err.message, 'error');
+      return;
+    }
+  }
+
+  const entry = {
+    id:     'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    title, prompt, imgUrl,
+    date:   new Date().toISOString()
+  };
+
+  entries.unshift(entry);
+  persist();
+  closeOverlay('addOverlay');
+  renderGrid();
+  toast('Entry saved! 🎉', 'success');
+}
+
+// ── API Key modal
+function openApiModal() {
+  document.getElementById('apiKeyInput').value = getKey();
+  openOverlay('apiOverlay');
+}
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k) { toast('Key cannot be empty', 'error'); return; }
+  saveKey(k);
+  refreshApiPill();
+  closeOverlay('apiOverlay');
+  toast('API key saved ✓', 'success');
+}
+function removeApiKey() {
+  if (!confirm('Remove API key?')) return;
+  removeKey();
+  refreshApiPill();
+  closeOverlay('apiOverlay');
+  toast('API key removed', 'error');
+}
+
+// ── Overlay helpers
+function openOverlay(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+function overlayClick(ev, id) { if (ev.target === document.getElementById(id)) closeOverlay(id); }
+
+// ── Toast
+let toastTimer;
+function toast(msg, type = 'success') {
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  const t = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icons[type] || '•';
+  document.getElementById('toastMsg').textContent  = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['viewOverlay','addOverlay','apiOverlay'].forEach(closeOverlay);
+  }
+});
+
+// ── Boot
+load();
+refreshApiPill();
+renderGrid();
+</script>
+</body>
+</html>
